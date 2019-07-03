@@ -74,6 +74,10 @@
           "description": "HTTP contains HTTP artifact location details",
           "$ref": "#/definitions/io.argoproj.workflow.v1alpha1.HTTPArtifact"
         },
+        "ipfs": {
+          "description": "IPFS contains IPFS artifact location details",
+          "$ref": "#/definitions/io.argoproj.workflow.v1alpha1.IPFSArtifact"
+        },
         "mode": {
           "description": "mode bits to use on this file, must be a value between 0 and 0777 set when loading input artifacts.",
           "type": "integer",
@@ -416,6 +420,15 @@
       "properties": {
         "url": {
           "description": "URL of the artifact",
+          "type": "string"
+        }
+      }
+    },
+    "io.argoproj.workflow.v1alpha1.IPFSArtifact": {
+      "description": "IPFSArtifact allows an file served on HTTP to be placed as an input artifact in a container",
+      "properties": {
+        "hash": {
+          "description": "Hash of the artifact",
           "type": "string"
         }
       }

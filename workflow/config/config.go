@@ -89,6 +89,8 @@ type ArtifactRepository struct {
 	Artifactory *ArtifactoryArtifactRepository `json:"artifactory,omitempty"`
 	// HDFS stores artifacts in HDFS
 	HDFS *HDFSArtifactRepository `json:"hdfs,omitempty"`
+
+	IPFS *IPFSArtifactRepository `json:"ipfs,omitempty"`
 }
 
 type PersistConfig struct {
@@ -148,4 +150,9 @@ type HDFSArtifactRepository struct {
 
 	// Force copies a file forcibly even if it exists (default: false)
 	Force bool `json:"force,omitempty"`
+}
+
+// HDFSArtifactRepository defines the controller configuration for an HDFS artifact repository
+type IPFSArtifactRepository struct {
+	wfv1.IPFSArtifact `json:",inline"`
 }

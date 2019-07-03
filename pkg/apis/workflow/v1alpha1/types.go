@@ -382,6 +382,9 @@ type ArtifactLocation struct {
 
 	// Raw contains raw artifact location details
 	Raw *RawArtifact `json:"raw,omitempty"`
+
+	// IPFS contains ipfs artifact address details
+	IPFS *IPFSArtifact `json:"ipfs,omitempty"`
 }
 
 // Outputs hold parameters, artifacts, and results from a step
@@ -804,6 +807,16 @@ func (r *RawArtifact) HasLocation() bool {
 }
 
 // HTTPArtifact allows an file served on HTTP to be placed as an input artifact in a container
+type IPFSArtifact struct {
+	// URL of the artifact
+	Hash string `json:"url"`
+}
+
+func (h *IPFSArtifact) HasLocation() bool {
+	return h != nil && h.Hash != ""
+}
+
+// HTTPArtifact allows an file served on HTTP to be placed as an input artifact in a container
 type HTTPArtifact struct {
 	// URL of the artifact
 	URL string `json:"url"`
@@ -1012,7 +1025,8 @@ func (a *Artifact) HasLocation() bool {
 		a.HTTP.HasLocation() ||
 		a.Artifactory.HasLocation() ||
 		a.Raw.HasLocation() ||
-		a.HDFS.HasLocation()
+		a.HDFS.HasLocation() ||
+		a.IPFS.HasLocation()
 }
 
 // GetTemplate retrieves a defined template by its name

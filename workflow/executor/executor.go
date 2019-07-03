@@ -40,6 +40,7 @@ import (
 	"github.com/argoproj/argo/workflow/artifacts/http"
 	"github.com/argoproj/argo/workflow/artifacts/raw"
 	"github.com/argoproj/argo/workflow/artifacts/s3"
+	"github.com/argoproj/argo/workflow/artifacts/ipfs"
 	"github.com/argoproj/argo/workflow/common"
 )
 
@@ -598,6 +599,10 @@ func (we *WorkflowExecutor) InitDriver(art wfv1.Artifact) (artifact.ArtifactDriv
 	}
 	if art.Raw != nil {
 		return &raw.RawArtifactDriver{}, nil
+	}
+
+	if art.IPFS != nil {
+		return &ipfs.IPFSDriver{}, nil
 	}
 
 	return nil, errors.Errorf(errors.CodeBadRequest, "Unsupported artifact driver for %s", art.Name)
