@@ -809,7 +809,7 @@ func (r *RawArtifact) HasLocation() bool {
 // HTTPArtifact allows an file served on HTTP to be placed as an input artifact in a container
 type IPFSArtifact struct {
 	// URL of the artifact
-	Hash string `json:"url"`
+	Hash string `json:"hash"`
 }
 
 func (h *IPFSArtifact) HasLocation() bool {
