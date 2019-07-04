@@ -804,6 +804,11 @@ func (woc *wfOperationCtx) addArchiveLocation(pod *apiv1.Pod, tmpl *wfv1.Templat
 			Path:       hdfsLocation.PathFormat,
 			Force:      hdfsLocation.Force,
 		}
+	} else if woc.controller.Config.ArtifactRepository.IPFS != nil {
+		woc.log.Debugf("Setting IPFS artifact repository information")
+		tmpl.ArchiveLocation.IPFS = &wfv1.IPFSArtifact{
+			Hash: woc.controller.Config.ArtifactRepository.IPFS.Hash,
+		}
 	} else {
 		return errors.Errorf(errors.CodeBadRequest, "controller is not configured with a default archive location")
 	}

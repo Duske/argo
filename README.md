@@ -4,6 +4,7 @@
 
 ![Argo Image](argo.png)
 
+ make controller-image executor-image IMAGE_TAG=latest IMAGE_NAMESPACE=theduske  DOCKER_PUSH=true DEV_IMAGE=true
 ## Quickstart
 ```bash
 kubectl create namespace argo

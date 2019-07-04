@@ -89,7 +89,7 @@ type ArtifactRepository struct {
 	Artifactory *ArtifactoryArtifactRepository `json:"artifactory,omitempty"`
 	// HDFS stores artifacts in HDFS
 	HDFS *HDFSArtifactRepository `json:"hdfs,omitempty"`
-
+	// IPFS stores artifacts in IPFS
 	IPFS *IPFSArtifactRepository `json:"ipfs,omitempty"`
 }
 
@@ -152,7 +152,7 @@ type HDFSArtifactRepository struct {
 	Force bool `json:"force,omitempty"`
 }
 
-// HDFSArtifactRepository defines the controller configuration for an HDFS artifact repository
+// IPFSArtifactRepository defines the controller configuration for an IPFS artifact repository
 type IPFSArtifactRepository struct {
 	wfv1.IPFSArtifact `json:",inline"`
 }
