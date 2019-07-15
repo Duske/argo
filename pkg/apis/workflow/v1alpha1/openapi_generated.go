@@ -803,17 +803,23 @@ func schema_pkg_apis_workflow_v1alpha1_IPFSArtifact(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "HTTPArtifact allows an file served on HTTP to be placed as an input artifact in a container",
+				Description: "IPFSArtifact allows an file served on IPFS to be placed as an input artifact in a container via hash",
 				Properties: map[string]spec.Schema{
 					"hash": {
 						SchemaProps: spec.SchemaProps{
-							Description: "URL of the artifact",
+							Description: "Hash of the artifact",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
+					"storageEndpoint": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
-				Required: []string{"hash"},
+				Required: []string{"hash", "storageEndpoint"},
 			},
 		},
 		Dependencies: []string{},

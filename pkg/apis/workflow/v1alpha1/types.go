@@ -806,14 +806,15 @@ func (r *RawArtifact) HasLocation() bool {
 	return r != nil
 }
 
-// HTTPArtifact allows an file served on HTTP to be placed as an input artifact in a container
+// IPFSArtifact allows an file served on IPFS to be placed as an input artifact in a container via hash
 type IPFSArtifact struct {
-	// URL of the artifact
+	// Hash of the artifact
 	Hash string `json:"hash"`
+	StorageEndpoint string `json:"storageEndpoint"`
 }
 
 func (h *IPFSArtifact) HasLocation() bool {
-	return h != nil && h.Hash != ""
+	return h != nil && h.StorageEndpoint != ""
 }
 
 // HTTPArtifact allows an file served on HTTP to be placed as an input artifact in a container

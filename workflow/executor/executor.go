@@ -281,7 +281,7 @@ func (we *WorkflowExecutor) saveArtifact(mainCtrID string, art *wfv1.Artifact) e
 			shallowCopy := *we.Template.ArchiveLocation.IPFS
 			art.IPFS= &shallowCopy
 			// NO OP
-		}else {
+		} else {
 			return errors.Errorf(errors.CodeBadRequest, "Unable to determine path to store %s. Archive location provided no information", art.Name)
 		}
 	}
@@ -484,6 +484,10 @@ func (we *WorkflowExecutor) SaveLogs() (*wfv1.Artifact, error) {
 		shallowCopy := *we.Template.ArchiveLocation.HDFS
 		art.HDFS = &shallowCopy
 		art.HDFS.Path = path.Join(art.HDFS.Path, fileName)
+	} else if we.Template.ArchiveLocation.IPFS != nil {
+		shallowCopy := *we.Template.ArchiveLocation.IPFS
+		art.IPFS= &shallowCopy
+		// NO OP
 	} else {
 		return nil, errors.Errorf(errors.CodeBadRequest, "Unable to determine path to store %s. Archive location provided no information", art.Name)
 	}

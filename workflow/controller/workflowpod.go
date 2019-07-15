@@ -816,6 +816,7 @@ func (woc *wfOperationCtx) addArchiveLocation(pod *apiv1.Pod, tmpl *wfv1.Templat
 		woc.log.Debugf("Setting IPFS artifact repository information")
 		tmpl.ArchiveLocation.IPFS = &wfv1.IPFSArtifact{
 			Hash: woc.controller.Config.ArtifactRepository.IPFS.Hash,
+			StorageEndpoint: woc.controller.Config.ArtifactRepository.IPFS.StorageEndpoint,
 		}
 	} else if woc.controller.Config.ArtifactRepository.IPFS == nil {
 		woc.log.Debugf("Skipping artifact repository info")
