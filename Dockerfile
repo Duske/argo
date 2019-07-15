@@ -52,7 +52,10 @@ RUN apt-get update && \
     apt-get install -y curl jq procps git tar mime-support && \
     rm -rf /var/lib/apt/lists/* && \
     curl -L -o /usr/local/bin/kubectl -LO https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
-    chmod +x /usr/local/bin/kubectl
+    chmod +x /usr/local/bin/kubectl && \
+    curl https://dist.ipfs.io/go-ipfs/v0.4.21/go-ipfs_v0.4.21_linux-386.tar.gz -o go-ipfs.tar.gz && \
+    tar xvf go-ipfs.tar.gz && \
+    cd go-ipfs && ./install.sh && cd .. && rm -rf go-ipfs go-ipfs.tar.gz
 COPY hack/ssh_known_hosts /etc/ssh/ssh_known_hosts
 COPY --from=builder /usr/local/bin/docker /usr/local/bin/
 
