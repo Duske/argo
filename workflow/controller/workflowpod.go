@@ -373,6 +373,14 @@ func (woc *wfOperationCtx) createEnvVars() []apiv1.EnvVar {
 			},
 		)
 	}
+	execEnvVars = append(execEnvVars, apiv1.EnvVar{
+		Name: common.EnvVarDownwardAPINodeIP,
+		ValueFrom: &apiv1.EnvVarSource{
+			FieldRef: &apiv1.ObjectFieldSelector{
+				FieldPath: "status.hostIP",
+			},
+		},
+	})
 	return execEnvVars
 }
 
@@ -809,6 +817,8 @@ func (woc *wfOperationCtx) addArchiveLocation(pod *apiv1.Pod, tmpl *wfv1.Templat
 		tmpl.ArchiveLocation.IPFS = &wfv1.IPFSArtifact{
 			Hash: woc.controller.Config.ArtifactRepository.IPFS.Hash,
 		}
+	} else if woc.controller.Config.ArtifactRepository.IPFS == nil {
+		woc.log.Debugf("Skipping artifact repository info")
 	} else {
 		return errors.Errorf(errors.CodeBadRequest, "controller is not configured with a default archive location")
 	}

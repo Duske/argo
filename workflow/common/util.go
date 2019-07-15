@@ -399,6 +399,22 @@ func RunCommand(name string, arg ...string) error {
 	return nil
 }
 
+func RunCommandWithOutput(name string, arg ...string) (string, error) {
+	cmd := exec.Command(name, arg...)
+	cmdStr := strings.Join(cmd.Args, " ")
+	log.Info(cmdStr)
+	output, err := cmd.Output()
+	if err != nil {
+		if exErr, ok := err.(*exec.ExitError); ok {
+			errOutput := string(exErr.Stderr)
+			log.Errorf("`%s` failed: %s", cmdStr, errOutput)
+			return "", errors.InternalError(strings.TrimSpace(errOutput))
+		}
+		return "", errors.InternalWrapError(err)
+	}
+	return string(output), nil
+}
+
 const patchRetries = 5
 
 // AddPodAnnotation adds an annotation to pod
