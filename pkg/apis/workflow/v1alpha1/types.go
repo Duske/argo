@@ -814,7 +814,7 @@ type IPFSArtifact struct {
 }
 
 func (h *IPFSArtifact) HasLocation() bool {
-	return h != nil && h.StorageEndpoint != ""
+	return h != nil && (h.StorageEndpoint != "" || h.Hash != "")
 }
 
 // HTTPArtifact allows an file served on HTTP to be placed as an input artifact in a container
