@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"github.com/ghodss/yaml"
 	"os"
 	"sync"
 
@@ -77,29 +76,6 @@ func waitOnOne(workflowName string, ignoreNotFound, quiet bool) {
 			if !quiet {
 				fmt.Printf("%s completed at %v\n", workflowName, wf.Status.FinishedAt)
 			}
-			var c = wfv1.Workflow{}
-			c.Kind = "Workflow"
-			c.APIVersion = "argoproj.io/v1alpha1"
-			c.SetGenerateName(wf.GetGenerateName())
-			c.SetNamespace(wf.GetNamespace())
-			c.Spec = *wf.Spec.DeepCopy()
-			for templateIdx, templateType := range wf.Spec.Templates {
-				if templateType.DAG == nil || templateType.DAG.Tasks == nil {
-					continue
-				}
-				for taskIdx, task := range templateType.DAG.Tasks {
-					for _, nodeStatus := range wf.Status.Nodes {
-						if nodeStatus.DisplayName == task.Name {
-							c.Spec.Templates[templateIdx].DAG.Tasks[taskIdx].Arguments.Artifacts = nodeStatus.Inputs.Artifacts
-							break
-						}
-					}
-
-				}
-			}
-			outBytes, _ := yaml.Marshal(c)
-			fmt.Print(string(outBytes))
-
 			return
 		}
 	}

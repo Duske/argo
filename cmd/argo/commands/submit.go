@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bufio"
+	"github.com/ghodss/yaml"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	cmdutil "github.com/argoproj/argo/util/cmd"
 	"github.com/argoproj/argo/workflow/common"
 	"github.com/argoproj/argo/workflow/util"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // cliSubmitOpts holds submition options specific to CLI submission (e.g. controlling output)
@@ -23,6 +25,7 @@ type cliSubmitOpts struct {
 	watch    bool   // --watch
 	strict   bool   // --strict
 	priority *int32 // --priority
+	receipt bool	// --receipt
 }
 
 func NewSubmitCommand() *cobra.Command {
@@ -56,6 +59,7 @@ func NewSubmitCommand() *cobra.Command {
 	command.Flags().BoolVarP(&cliSubmitOpts.wait, "wait", "w", false, "wait for the workflow to complete")
 	command.Flags().BoolVar(&cliSubmitOpts.watch, "watch", false, "watch the workflow until it completes")
 	command.Flags().BoolVar(&cliSubmitOpts.strict, "strict", true, "perform strict workflow validation")
+	command.Flags().BoolVar(&cliSubmitOpts.receipt, "receipt", false, "generate a workflow.yaml as the result")
 	command.Flags().Int32Var(&priority, "priority", 0, "workflow priority")
 	command.Flags().StringVarP(&submitOpts.ParameterFile, "parameter-file", "f", "", "pass a file containing all input parameters")
 	// Only complete files with appropriate extension.
@@ -158,5 +162,42 @@ func waitOrWatch(workflowNames []string, cliSubmitOpts cliSubmitOpts) {
 		WaitWorkflows(workflowNames, false, !(cliSubmitOpts.output == "" || cliSubmitOpts.output == "wide"))
 	} else if cliSubmitOpts.watch {
 		watchWorkflow(workflowNames[0])
+	}
+	if cliSubmitOpts.receipt {
+		generateReceipt(workflowNames)
+	}
+}
+
+func generateReceipt(workflowNames []string)  {
+	for _, name := range workflowNames {
+		wf, err := wfClient.Get(name, metav1.GetOptions{})
+		if err != nil {
+			return
+		}
+		var c = wfv1.Workflow{}
+		c.Kind = "Workflow"
+		c.APIVersion = "argoproj.io/v1alpha1"
+		c.SetGenerateName(wf.GetGenerateName())
+		c.SetNamespace(wf.GetNamespace())
+		c.Spec = *wf.Spec.DeepCopy()
+		for templateIdx, templateType := range wf.Spec.Templates {
+			if templateType.DAG == nil || templateType.DAG.Tasks == nil {
+				continue
+			}
+			for taskIdx, task := range templateType.DAG.Tasks {
+				for _, nodeStatus := range wf.Status.Nodes {
+					if nodeStatus.DisplayName == task.Name {
+						c.Spec.Templates[templateIdx].DAG.Tasks[taskIdx].Arguments.Artifacts = nodeStatus.Inputs.Artifacts
+						break
+					}
+				}
+
+			}
+		}
+		outBytes, _ := yaml.Marshal(c)
+		err = ioutil.WriteFile(name + ".yaml", outBytes, 0644)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
