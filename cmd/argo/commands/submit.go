@@ -186,6 +186,9 @@ func generateReceipt(workflowNames []string)  {
 			}
 			for taskIdx, task := range templateType.DAG.Tasks {
 				for _, nodeStatus := range wf.Status.Nodes {
+					if nodeStatus.Inputs == nil {
+						continue
+					}
 					if nodeStatus.DisplayName == task.Name {
 						c.Spec.Templates[templateIdx].DAG.Tasks[taskIdx].Arguments.Artifacts = nodeStatus.Inputs.Artifacts
 						break
