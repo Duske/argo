@@ -1,21 +1,23 @@
-PACKAGE=github.com/argoproj/argo
-CURRENT_DIR=$(shell pwd)
-DIST_DIR=${CURRENT_DIR}/dist
-ARGO_CLI_NAME=argo
+PACKAGE                = github.com/argoproj/argo
+CURRENT_DIR            = $(shell pwd)
+DIST_DIR               = ${CURRENT_DIR}/dist
+ARGO_CLI_NAME          = argo
 
-VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
-BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-GIT_COMMIT=$(shell git rev-parse HEAD)
-GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
-GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
+VERSION                = $(shell cat ${CURRENT_DIR}/VERSION)
+BUILD_DATE             = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+GIT_COMMIT             = $(shell git rev-parse HEAD)
+GIT_TAG                = $(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
+GIT_TREE_STATE         = $(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 
 # docker image publishing options
-DOCKER_PUSH=false
-IMAGE_TAG=latest
+DOCKER_PUSH           ?= false
+IMAGE_TAG             ?= latest
 # perform static compilation
-STATIC_BUILD=true
+STATIC_BUILD          ?= true
 # build development images
-DEV_IMAGE=false
+DEV_IMAGE             ?= false
+
+GOLANGCI_EXISTS := $(shell command -v golangci-lint 2> /dev/null)
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -28,7 +30,7 @@ override LDFLAGS += -extldflags "-static"
 endif
 
 ifneq (${GIT_TAG},)
-IMAGE_TAG=${GIT_TAG}
+IMAGE_TAG = ${GIT_TAG}
 override LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 endif
 
@@ -39,7 +41,7 @@ endif
 endif
 
 ifdef IMAGE_NAMESPACE
-IMAGE_PREFIX=${IMAGE_NAMESPACE}/
+IMAGE_PREFIX = ${IMAGE_NAMESPACE}/
 endif
 
 # Build the project
@@ -127,16 +129,25 @@ endif
 
 .PHONY: lint
 lint:
+	go fmt ./...
+ifdef GOLANGCI_EXISTS
+	golangci-lint run --fix --verbose --config golangci.yml
+else
 	# Remove gometalinter after a migration time.
-	(command -v golangci-lint >/dev/null 2>&1 && golangci-lint run --config golangci.yml) || \
 	gometalinter --config gometalinter.json ./...
+endif
 
 .PHONY: test
 test:
-	go test ./...
+	go test -covermode=count -coverprofile=coverage.out ./...
+
+.PHONY: cover
+cover:
+	go tool cover -html=coverage.out
 
 .PHONY: codegen
 codegen:
+	./hack/generate-proto.sh
 	./hack/update-codegen.sh
 	./hack/update-openapigen.sh
 	go run ./hack/gen-openapi-spec/main.go ${VERSION} > ${CURRENT_DIR}/api/openapi-spec/swagger.json

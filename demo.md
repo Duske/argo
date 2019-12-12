@@ -11,11 +11,18 @@ the workflows. Here are the requirements and steps to run the workflows.
 
 ## 1. Download Argo
 
-Download the latest Argo CD version from https://github.com/argoproj/argo/releases/latest.
+Download the latest Argo binary version from https://github.com/argoproj/argo/releases/latest.
 
 Also available in Mac Homebrew:
 ```
 brew install argoproj/tap/argo
+```
+
+Also you can use this command to install for Linux 
+
+```
+curl -sSL -o /usr/local/bin/argo https://github.com/argoproj/argo/releases/download/v2.4.2/argo-linux-amd64
+chmod +x /usr/local/bin/argo
 ```
 
 ## 2. Install the Controller and UI
@@ -32,7 +39,7 @@ kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=c
 
 To run all of the examples in this guide, the 'default' service account is too limited to support
 features such as artifacts, outputs, access to secrets, etc... For demo purposes, run the following
-command to grant admin privileges to the 'default' service account in the namespace 'default':
+command to grant admin privileges to the 'default' service account in the namespace 'default'. Make sure you are on the 'default' namespace before running them.
 ```
 kubectl create rolebinding default-admin --clusterrole=admin --serviceaccount=default:default
 ```
@@ -52,6 +59,8 @@ argo list
 argo get xxx-workflow-name-xxx
 argo logs xxx-pod-name-xxx #from get command above
 ```
+
+Make sure you run these examples while on the `default` namespace (since we granted admin privileges only within `default` on the previous step).
 
 You can also create workflows directly with kubectl. However, the Argo CLI offers extra features
 that kubectl does not, such as YAML validation, workflow visualization, parameter passing, retries
@@ -83,11 +92,11 @@ helm install stable/minio \
 
 Login to the Minio UI using a web browser (port 9000) after exposing obtaining the external IP using `kubectl`.
 ```
-kubectl get service argo-artifacts -o wide
+kubectl -n argo get service argo-artifacts -o wide
 ```
 On Minikube:
 ```
-minikube service --url argo-artifacts
+minikube -n argo service --url argo-artifacts
 ```
 
 NOTE: When minio is installed via Helm, it uses the following hard-wired default credentials,
@@ -109,7 +118,7 @@ data:
     artifactRepository:
       s3:
         bucket: my-bucket
-        endpoint: argo-artifacts.default:9000
+        endpoint: argo-artifacts:9000
         insecure: true
         # accessKeySecret and secretKeySecret are secret selectors.
         # It references the k8s secret named 'argo-artifacts'

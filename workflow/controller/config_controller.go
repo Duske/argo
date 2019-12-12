@@ -9,13 +9,14 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo/errors"
 	"github.com/argoproj/argo/workflow/common"
 	"github.com/argoproj/argo/workflow/config"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/yaml"
 )
 
 // ResyncConfig reloads the controller config from the configmap
@@ -140,4 +141,29 @@ func (wfc *WorkflowController) newControllerConfigMapWatch() *cache.ListWatch {
 		return req.Watch()
 	}
 	return &cache.ListWatch{ListFunc: listFunc, WatchFunc: watchFunc}
+}
+
+func ReadConfigMapValue(clientset kubernetes.Interface, namespace string, name string, key string) (string, error) {
+	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	value, ok := cm.Data[key]
+	if !ok {
+		return "", errors.InternalErrorf("Key %s was not found in the %s configMap.", key, name)
+	}
+	return value, nil
+}
+
+func getArtifactRepositoryRef(wfc *WorkflowController, configMapName string, key string) (*config.ArtifactRepository, error) {
+	configStr, err := ReadConfigMapValue(wfc.kubeclientset, wfc.namespace, configMapName, key)
+	if err != nil {
+		return nil, err
+	}
+	var config config.ArtifactRepository
+	err = yaml.Unmarshal([]byte(configStr), &config)
+	if err != nil {
+		return nil, errors.InternalWrapError(err)
+	}
+	return &config, nil
 }

@@ -1,21 +1,23 @@
 package controller
 
 import (
-	"bytes"
-	"encoding/json"
-	"github.com/argoproj/argo/workflow/config"
-	"io"
-	"io/ioutil"
+	"context"
+	"k8s.io/client-go/util/workqueue"
 	"testing"
+	"time"
 
-	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
-	fakewfclientset "github.com/argoproj/argo/pkg/client/clientset/versioned/fake"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/yaml"
+
+	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
+	fakewfclientset "github.com/argoproj/argo/pkg/client/clientset/versioned/fake"
+	wfextv "github.com/argoproj/argo/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo/workflow/config"
 )
 
 var helloWorldWf = `
@@ -41,22 +43,24 @@ spec:
 `
 
 func newController() *WorkflowController {
+	wfclientset := fakewfclientset.NewSimpleClientset()
+	informerFactory := wfextv.NewSharedInformerFactory(wfclientset, 10*time.Minute)
+	wftmplInformer := informerFactory.Argoproj().V1alpha1().WorkflowTemplates()
+	ctx := context.Background()
+	go wftmplInformer.Informer().Run(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), wftmplInformer.Informer().HasSynced) {
+		panic("Timed out waiting for caches to sync")
+	}
 	return &WorkflowController{
 		Config: config.WorkflowControllerConfig{
 			ExecutorImage: "executor:latest",
 		},
-		kubeclientset: fake.NewSimpleClientset(),
-		wfclientset:   fakewfclientset.NewSimpleClientset(),
-		completedPods: make(chan string, 512),
+		kubeclientset:  fake.NewSimpleClientset(),
+		wfclientset:    wfclientset,
+		completedPods:  make(chan string, 512),
+		wftmplInformer: wftmplInformer,
+		wfQueue:        workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 	}
-}
-
-func marshallBody(b interface{}) io.ReadCloser {
-	result, err := json.Marshal(b)
-	if err != nil {
-		panic(err)
-	}
-	return ioutil.NopCloser(bytes.NewReader(result))
 }
 
 func unmarshalWF(yamlStr string) *wfv1.Workflow {
@@ -72,7 +76,7 @@ func unmarshalWF(yamlStr string) *wfv1.Workflow {
 func makePodsRunning(t *testing.T, kubeclientset kubernetes.Interface, namespace string) {
 	podcs := kubeclientset.CoreV1().Pods(namespace)
 	pods, err := podcs.List(metav1.ListOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	for _, pod := range pods.Items {
 		pod.Status.Phase = apiv1.PodRunning
 		_, _ = podcs.Update(&pod)

@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo/util"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -20,7 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	argofile "github.com/argoproj/pkg/file"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +29,7 @@ import (
 
 	"github.com/argoproj/argo/errors"
 	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo/util"
 	"github.com/argoproj/argo/util/archive"
 	"github.com/argoproj/argo/util/retry"
 	artifact "github.com/argoproj/argo/workflow/artifacts"
@@ -42,11 +41,12 @@ import (
 	"github.com/argoproj/argo/workflow/artifacts/s3"
 	"github.com/argoproj/argo/workflow/artifacts/ipfs"
 	"github.com/argoproj/argo/workflow/common"
+	argofile "github.com/argoproj/pkg/file"
 )
 
 const (
 	// This directory temporarily stores the tarballs of the artifacts before uploading
-	tempOutArtDir = "/argo/outputs/artifacts"
+	tempOutArtDir = "/tmp/argo/outputs/artifacts"
 )
 
 // WorkflowExecutor is program which runs as the init/wait container
@@ -391,8 +391,23 @@ func (we *WorkflowExecutor) stageArchiveFile(mainCtrID string, art *wfv1.Artifac
 	return fileName, localArtPath, nil
 }
 
+// isBaseImagePath checks if the given artifact path resides in the base image layer of the container
+// versus a shared volume mount between the wait and main container
 func (we *WorkflowExecutor) isBaseImagePath(path string) bool {
-	return common.FindOverlappingVolume(&we.Template, path) == nil
+	// first check if path overlaps with a user-specified volumeMount
+	if common.FindOverlappingVolume(&we.Template, path) != nil {
+		return false
+	}
+	// next check if path overlaps with a shared input-artifact emptyDir mounted by argo
+	for _, inArt := range we.Template.Inputs.Artifacts {
+		if path == inArt.Path {
+			return false
+		}
+		if strings.HasPrefix(path, inArt.Path+"/") {
+			return false
+		}
+	}
+	return true
 }
 
 // SaveParameters will save the content in the specified file path as output parameter value
@@ -452,7 +467,7 @@ func (we *WorkflowExecutor) SaveLogs() (*wfv1.Artifact, error) {
 	if err != nil {
 		return nil, err
 	}
-	tempLogsDir := "/argo/outputs/logs"
+	tempLogsDir := "/tmp/argo/outputs/logs"
 	err = os.MkdirAll(tempLogsDir, os.ModePerm)
 	if err != nil {
 		return nil, errors.InternalWrapError(err)
@@ -552,6 +567,7 @@ func (we *WorkflowExecutor) InitDriver(art wfv1.Artifact) (artifact.ArtifactDriv
 			SecretKey: secretKey,
 			Secure:    art.S3.Insecure == nil || !*art.S3.Insecure,
 			Region:    art.S3.Region,
+			RoleARN:   art.S3.RoleARN,
 		}
 		return &driver, nil
 	}
@@ -745,6 +761,11 @@ func (we *WorkflowExecutor) GetMainContainerID() (string, error) {
 
 // CaptureScriptResult will add the stdout of a script template as output result
 func (we *WorkflowExecutor) CaptureScriptResult() error {
+
+	if we.ExecutionControl == nil || !we.ExecutionControl.IncludeScriptOutput {
+		log.Infof("No Script output reference in workflow. Capturing script output ignored")
+		return nil
+	}
 	if we.Template.Script == nil {
 		return nil
 	}
@@ -880,7 +901,14 @@ func (we *WorkflowExecutor) Wait() error {
 	annotationUpdatesCh := we.monitorAnnotations(ctx)
 	go we.monitorDeadline(ctx, annotationUpdatesCh)
 
-	err = we.RuntimeExecutor.Wait(mainContainerID)
+	_ = wait.ExponentialBackoff(retry.DefaultRetry, func() (bool, error) {
+		err = we.RuntimeExecutor.Wait(mainContainerID)
+		if err != nil {
+			log.Warnf("Failed to wait for container id '%s': %v", mainContainerID, err)
+			return false, err
+		}
+		return true, nil
+	})
 	if err != nil {
 		return err
 	}

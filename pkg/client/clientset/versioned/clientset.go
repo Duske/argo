@@ -3,6 +3,8 @@
 package versioned
 
 import (
+	"fmt"
+
 	argoprojv1alpha1 "github.com/argoproj/argo/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -12,8 +14,6 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Argoproj() argoprojv1alpha1.ArgoprojV1alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -28,12 +28,6 @@ func (c *Clientset) ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alpha1Interfac
 	return c.argoprojV1alpha1
 }
 
-// Deprecated: Argoproj retrieves the default version of ArgoprojClient.
-// Please explicitly pick a version.
-func (c *Clientset) Argoproj() argoprojv1alpha1.ArgoprojV1alpha1Interface {
-	return c.argoprojV1alpha1
-}
-
 // Discovery retrieves the DiscoveryClient
 func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 	if c == nil {
@@ -43,9 +37,14 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 }
 
 // NewForConfig creates a new Clientset for the given config.
+// If config's RateLimiter is not set and QPS and Burst are acceptable,
+// NewForConfig will generate a rate-limiter in configShallowCopy.
 func NewForConfig(c *rest.Config) (*Clientset, error) {
 	configShallowCopy := *c
 	if configShallowCopy.RateLimiter == nil && configShallowCopy.QPS > 0 {
+		if configShallowCopy.Burst <= 0 {
+			return nil, fmt.Errorf("Burst is required to be greater than 0 when RateLimiter is not set and QPS is set to greater than 0")
+		}
 		configShallowCopy.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(configShallowCopy.QPS, configShallowCopy.Burst)
 	}
 	var cs Clientset

@@ -1,15 +1,6 @@
 run:
   tests: false
+  deadline: 30m
   skip-files:
     - "pkg/client"
-output:
-  format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-linters:
-  enable:
-  - gofmt
-  - goimports
-  - unconvert
-  - misspell
-  fast: false
+    - "vendor/"
