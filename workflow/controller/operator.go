@@ -624,10 +624,21 @@ func (woc *wfOperationCtx) podReconciliation() error {
 		if pod == nil {
 			return
 		}
+		seen := true
+		if pod.Status.Phase == apiv1.PodRunning && pod.GetDeletionTimestamp() != nil {
+			node, err := woc.controller.kubeclientset.CoreV1().Nodes().Get(pod.Spec.NodeName, metav1.GetOptions{})
+			if err != nil {
+				return
+			}
+			conditions := node.Status.Conditions
+			if conditions[len(conditions)-1].Status == apiv1.ConditionUnknown {
+				seen = false
+			}
+		}
 		nodeNameForPod := pod.Annotations[common.AnnotationKeyNodeName]
 		nodeID := woc.wf.NodeID(nodeNameForPod)
 		seenPodLock.Lock()
-		seenPods[nodeID] = true
+		seenPods[nodeID] = seen
 		seenPodLock.Unlock()
 
 		wfNodesLock.Lock()
@@ -799,6 +810,12 @@ func assessNodeStatus(pod *apiv1.Pod, node *wfv1.NodeStatus) *wfv1.NodeStatus {
 	case apiv1.PodRunning:
 		newPhase = wfv1.NodeRunning
 		tmplStr, ok := pod.Annotations[common.AnnotationKeyTemplate]
+		if pod.GetDeletionTimestamp() != nil {
+			newPhase = wfv1.NodeError
+			message = fmt.Sprintf("Unexpected pod phase for %s: %s", pod.ObjectMeta.Name, pod.Status.Phase)
+			log.Error(message)
+			break
+		}
 		if !ok {
 			log.Warnf("%s missing template annotation", pod.ObjectMeta.Name)
 			return nil
