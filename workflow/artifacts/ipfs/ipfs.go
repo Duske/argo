@@ -39,8 +39,8 @@ func (h *IPFSDriver) Load(inputArtifact *wfv1.Artifact, path string) error {
 	if nodeIP == "" {
 		return fmt.Errorf("empty envvar %s", common.EnvVarDownwardAPINodeIP)
 	}
-	endpoint := "/ip4/" + nodeIP + "/tcp/5001"
-	return common.RunCommand("ipfs", "--api", endpoint, "get", "-o", path, inputArtifact.IPFS.Hash)
+	url := "http://" + nodeIP + ":8555/ipfs/" + inputArtifact.IPFS.Hash
+	return common.RunCommand("curl", "-L", "-o", path, "-LO", url)
 }
 
 func (h *IPFSDriver) Save(path string, outputArtifact *wfv1.Artifact) error {
