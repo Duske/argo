@@ -4,7 +4,13 @@
 
 ![Argo Image](argo.png)
 
- make controller-image executor-image IMAGE_TAG=latest IMAGE_NAMESPACE=theduske  DOCKER_PUSH=true DEV_IMAGE=true
+# This Fork
+Please note that this is a fork of the original repository, which extends Argo with the following features:
+
+* Added support for IPFS as artifact storage. Files can be read by CID and pushed to a HTTP-powered IPFS endpoint. 
+* Generate a reproducible workflow definition file by using CLI param `--receipt`. IPFS is required for this feature.
+* Detect offline nodes to reschedule their tasks. 
+
 ## Quickstart
 ```bash
 kubectl create namespace argo
