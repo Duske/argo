@@ -644,7 +644,7 @@ func (woc *wfOperationCtx) podReconciliation() error {
 		wfNodesLock.Lock()
 		defer wfNodesLock.Unlock()
 		if node, ok := woc.wf.Status.Nodes[nodeID]; ok {
-			if newState := assessNodeStatus(pod, &node); newState != nil {
+			if newState := woc.assessNodeStatus(pod, &node); newState != nil {
 				woc.wf.Status.Nodes[nodeID] = *newState
 				woc.addOutputsToScope("workflow", node.Outputs, nil)
 				woc.updated = true
@@ -784,9 +784,23 @@ func (woc *wfOperationCtx) getAllWorkflowPods() (*apiv1.PodList, error) {
 	return podList, nil
 }
 
+// getAllWorkflowPods returns all pods related to the current workflow
+func (woc *wfOperationCtx) isNodeOffline(name string) (bool, error) {
+	node, err := woc.controller.kubeclientset.CoreV1().Nodes().Get(name, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	conditions := node.Status.Conditions
+	if conditions[len(conditions)-1].Status == apiv1.ConditionUnknown {
+		return true, nil
+	}
+	return false, nil
+}
+
+
 // assessNodeStatus compares the current state of a pod with its corresponding node
 // and returns the new node status if something changed
-func assessNodeStatus(pod *apiv1.Pod, node *wfv1.NodeStatus) *wfv1.NodeStatus {
+func (woc *wfOperationCtx) assessNodeStatus(pod *apiv1.Pod, node *wfv1.NodeStatus) *wfv1.NodeStatus {
 	var newPhase wfv1.NodePhase
 	var newDaemonStatus *bool
 	var message string
@@ -810,11 +824,14 @@ func assessNodeStatus(pod *apiv1.Pod, node *wfv1.NodeStatus) *wfv1.NodeStatus {
 	case apiv1.PodRunning:
 		newPhase = wfv1.NodeRunning
 		tmplStr, ok := pod.Annotations[common.AnnotationKeyTemplate]
-		if pod.GetDeletionTimestamp() != nil {
-			newPhase = wfv1.NodeError
-			message = fmt.Sprintf("Unexpected pod phase for %s: %s", pod.ObjectMeta.Name, pod.Status.Phase)
-			log.Error(message)
-			break
+		if pod.GetDeletionTimestamp() != nil  {
+			nodeOffline, err := woc.isNodeOffline(pod.Spec.NodeName)
+			if err == nil && nodeOffline {
+				newPhase = wfv1.NodeError
+				message = fmt.Sprintf("Node offline. Unexpected pod phase for %s: %s", pod.ObjectMeta.Name, pod.Status.Phase)
+				log.Error(message)
+				break
+			}
 		}
 		if !ok {
 			log.Warnf("%s missing template annotation", pod.ObjectMeta.Name)
